@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-simple-app
+  labels:
+    app: my-simple-app
+spec:
+  replicas: 1 # Можете змінити на 2, якщо потрібно
+  selector:
+    matchLabels:
+      app: my-simple-app
+  template:
+    metadata:
+      labels:
+        app: my-simple-app
+    spec:
+      containers:
+      - name: my-simple-app-container
+        image: IMAGE_PLACEHOLDER # Цей плейсхолдер буде замінено Cloud Build
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-simple-app-service
+spec:
+  selector:
+    app: my-simple-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer # Це створить зовнішній IP для доступу

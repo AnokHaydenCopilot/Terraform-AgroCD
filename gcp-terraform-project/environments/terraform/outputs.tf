@@ -1,0 +1,40 @@
+output "gke_cluster_name" {
+  description = "Назва створеного GKE кластера."
+  value       = google_container_cluster.primary.name
+}
+
+output "gke_cluster_endpoint" {
+  description = "Endpoint GKE кластера."
+  value       = google_container_cluster.primary.endpoint
+  sensitive   = true
+}
+
+output "gke_cluster_location" {
+  description = "Локація (регіон або зона) GKE кластера."
+  value       = google_container_cluster.primary.location
+}
+
+output "gke_node_pool_name" {
+  description = "Назва пулу нод GKE кластера."
+  value       = google_container_node_pool.primary_nodes.name
+}
+
+output "source_code_bucket_name" {
+  description = "Назва GCS бакету для вихідного коду."
+  value       = google_storage_bucket.source_code_bucket.name
+}
+
+output "cloud_build_trigger_id" {
+  description = "ID створеного Cloud Build тригера."
+  value       = google_cloudbuild_trigger.pipeline_trigger.id
+}
+
+output "cloud_build_service_account" {
+  description = "Сервісний акаунт, який використовується Cloud Build."
+  value       = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+output "how_to_get_kubeconfig" {
+  description = "Команда для отримання kubeconfig файлу для доступу до кластера."
+  value       = "gcloud container clusters get-credentials ${google_container_cluster.primary.name} --region ${google_container_cluster.primary.location} --project ${var.project_id}"
+}
