@@ -9,11 +9,10 @@
 crash.log
 crash.*.log
 
-# Exclude all .tfvars files, which are likely to contain sentitive data, such as
-# password, private keys, and other secrets. These should not be part of version
+# Exclude all .tfvars files, which are likely to contain sensitive data, such as
+# passwords, private keys, and other secrets. These should not be part of version
 # control as they are data points which are potentially sensitive and subject
 # to change depending on the environment.
-#
 *.tfvars
 
 # Ignore override files as they are usually used to override resources locally and so
@@ -33,3 +32,21 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Ignore service account keys and other sensitive credentials
+*.json
+!example-service-account-key.json # Example file to include in version control
+
+# Ignore temporary files and archives
+*.zip
+*.tar.gz
+*.tmp
+
+# Ignore editor/IDE-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore logs and debug files
+*.log
