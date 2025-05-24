@@ -47,24 +47,30 @@
     *   Знаходиться в `gcp-terraform-project/source_code_for_pipeline/app/`.
 
 ## Структура проекту
-gcp-terraform-project/ <- Корінь GitHub репозиторію
+
+Нижче наведено структуру директорій проекту в GitHub репозиторії:
+
+```
+gcp-terraform-project/  <- Корінь GitHub репозиторію ("Terraform-Study")
 ├── environments/
-│ └── terraform/ <- Terraform код для інфраструктури
-│ ├── main.tf
-│ ├── variables.tf
-│ ├── outputs.tf
-│ └── backend.tf 
+│   └── terraform/          <- Terraform код для інфраструктури
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── backend.tf      <- (Опціонально) Для GCS бекенду стану
 ├── source_code_for_pipeline/ <- Код та конфігурації для CI/CD пайплайну
-│ ├── app/ <- Код простого веб-додатку
-│ │ ├── Dockerfile
-│ │ └── index.html
-│ ├── kubernetes/ <- Kubernetes маніфести
-│ │ └── deployment.yaml
-│ └── cloudbuild.yaml <- Конфігурація для Google Cloud Build
-└── service-account-key.json <- (ПОЗА РЕПОЗИТОРІЄМ!) Ключ сервісного акаунту GCP
+│   ├── app/                  <- Код простого веб-додатку
+│   │   ├── Dockerfile
+│   │   └── index.html
+│   ├── kubernetes/           <- Kubernetes маніфести
+│   │   └── deployment.yaml
+│   └── cloudbuild.yaml       <- Конфігурація для Google Cloud Build
+├── .gitattributes            <- Файл конфігурації Git
+├── .gitignore                <- Файл для ігнорування файлів Git
+└── README.md                 <- Цей файл опису
 
-**Важливо:** Файл `service-account-key.json` НІКОЛИ не повинен зберігатися у публічному (і навіть приватному, якщо це можливо) Git репозиторії. Він має бути доступний локально для Terraform під час виконання `apply`. Шлях до нього в конфігурації провайдера: `file("${path.module}/../../service-account-key.json")` (припускаючи, що він лежить на два рівні вище від директорії `environments/terraform/`).
-
+**Важливо:** Файл `service-account-key.json` НІКОЛИ не повинен зберігатися у публічному (і навіть приватному, якщо це можливо) Git репозиторії. Він має бути доступний локально для Terraform під час виконання `apply`. Шлях до нього в конфігурації провайдера: `file("${path.module}/../../service-account-key.json")` (`).
+```
 ## Вимоги
 
 *   Акаунт Google Cloud Platform з увімкненим білінгом.
@@ -74,7 +80,6 @@ gcp-terraform-project/ <- Корінь GitHub репозиторію
 *   GitHub репозиторій.
 *   Налаштоване підключення Cloud Build до GitHub репозиторію через Cloud Build GitHub App.
 
-## Налаштування та Запуск
 
 ## Налаштування та Запуск
 
