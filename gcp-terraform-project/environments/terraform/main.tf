@@ -81,46 +81,33 @@ resource "google_container_node_pool" "primary_nodes" {
   # Якщо кластер зональний, потрібно вказати `node_locations = [var.zone]`
 }
 
-
-
-
-
 locals {
   service_account_credentials = jsondecode(file(var.service_account_key_path))
   owner_service_account_email = local.service_account_credentials.client_email
 }
 
+
 resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   provider    = google-beta
   project     = var.project_id
-  name        = "tf-github-trigger-corrected" # Нова унікальна назва
-  description = "GitHub trigger based on successful manual creation"
-  location    = var.region # Встановлюємо регіон, як у ручному тригері (us-central1)
+  name        = "tf-github-final-attempt" # Нова унікальна назва
+  description = "GitHub trigger, substitutions at top level, no build block"
+  location    = var.region # Або "global", залежно від вашого підключення
 
-  # Фільтр файлів
   included_files = [
     "source_code_for_pipeline/**"
   ]
 
-  # Конфігурація джерела через блок "github"
   github {
     owner = "AnokHaydenCopilot"
-    name  = "Terraform-Study" # Назва репозиторію
-
+    name  = "Terraform-Study"
     push {
-      branch = "^refs/heads/main$" # Або просто "main", якщо регулярний вираз не спрацює в TF
-                                   # Але "^main$" є більш точним відповідником з JSON
+      branch = "main"
     }
   }
 
-  # Шлях до cloudbuild.yaml відносно кореня репозиторію
-  filename = "source_code_for_pipeline/cloudbuild.yaml"
+  filename = "gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml" # Правильний шлях
 
-  # Вказуємо сервісний акаунт, від імені якого буде виконуватися білд
-  # Це має бути ваш Owner SA, як у ручному тригері.
-  # Переконайтеся, що цей SA має необхідні права для виконання кроків білду
-  # (роль Owner їх має, але це також означає, що він має права roles/iam.serviceAccountUser на самого себе,
-  # щоб Cloud Build міг його використовувати, та права roles/cloudbuild.builds.worker - хоча Owner це покриває).
   service_account = "projects/${var.project_id}/serviceAccounts/${local.owner_service_account_email}"
 
   substitutions = {
@@ -132,8 +119,5 @@ resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   depends_on = [
     google_project_service.cloudbuild_api,
     google_container_cluster.primary,
-    # Якщо ви раніше надавали специфічні права вашому Owner SA (наприклад, cloudbuild.builds.editor),
-    # то залежності від тих ресурсів google_project_iam_member мають бути тут.
-    # Але якщо він просто Owner, то додаткові IAM bindings для нього можуть бути не потрібні.
   ]
 }
