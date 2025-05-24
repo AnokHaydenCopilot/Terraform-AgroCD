@@ -106,7 +106,7 @@ resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
     }
   }
 
-  filename = "gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml" # Правильний шлях
+  filename = "gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml"
 
   service_account = "projects/${var.project_id}/serviceAccounts/${local.owner_service_account_email}"
 
