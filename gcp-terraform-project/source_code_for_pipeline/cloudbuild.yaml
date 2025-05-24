@@ -1,9 +1,13 @@
 # gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml
-
 steps:
 # 1. Збірка Docker образу
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA', './source_code_for_pipeline/app']
+  # Робоча директорія цього кроку - це директорія, де лежить cloudbuild.yaml
+  # Тобто, gcp-terraform-project/source_code_for_pipeline/
+  # Директорія 'app' знаходиться на тому ж рівні, що й 'kubernetes'
+  # відносно директорії, де лежить cloudbuild.yaml.
+  # Тому шлях до Dockerfile тепер просто './app'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA', './app'] # <--- ВИПРАВЛЕНО
   id: 'Build Docker Image'
 
 # 2. Публікація Docker образу
@@ -22,7 +26,8 @@ steps:
       --project "$PROJECT_ID"
     
     echo "Deploying image gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA to GKE cluster ${_GKE_CLUSTER_NAME}"
-    sed "s|IMAGE_PLACEHOLDER|gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA|g" ./source_code_for_pipeline/kubernetes/deployment.yaml > /tmp/deployment.yaml
+    # Шлях до deployment.yaml тепер просто './kubernetes/deployment.yaml'
+    sed "s|IMAGE_PLACEHOLDER|gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA|g" ./kubernetes/deployment.yaml > /tmp/deployment.yaml # <--- ВИПРАВЛЕНО
     cat /tmp/deployment.yaml
     kubectl apply -f /tmp/deployment.yaml
     kubectl rollout status deployment/my-simple-app --timeout=300s
@@ -31,11 +36,8 @@ steps:
 images:
 - 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA'
 
-# Substitutions, які передаються з тригера Terraform,
-# будуть доступні тут. Можна також визначити значення за замовчуванням.
 substitutions:
-  _IMAGE_NAME: 'my-default-app-image' # Це значення буде використано, якщо _IMAGE_NAME не передано з тригера
+  _IMAGE_NAME: 'my-simple-gke-app'
 
-# --- ВАЖЛИВА СЕКЦІЯ ---
 options:
-  logging: CLOUD_LOGGING_ONLY # Або "NONE", якщо не потрібні логи (не рекомендується)
+  logging: CLOUD_LOGGING_ONLY
