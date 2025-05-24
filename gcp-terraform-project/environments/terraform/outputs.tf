@@ -19,14 +19,9 @@ output "gke_node_pool_name" {
   value       = google_container_node_pool.primary_nodes.name
 }
 
-output "source_code_bucket_name" {
-  description = "Назва GCS бакету для вихідного коду."
-  value       = google_storage_bucket.source_code_bucket.name
-}
-
 output "cloud_build_trigger_id" {
   description = "ID створеного Cloud Build тригера."
-  value       = google_cloudbuild_trigger.pipeline_trigger.id
+  value       = google_cloudbuild_trigger.github_pipeline_trigger.id
 }
 
 output "cloud_build_service_account" {

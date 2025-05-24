@@ -9,11 +9,6 @@ provider "google-beta" {
   project     = var.project_id
   region      = var.region
 }
-locals {
-  service_account_credentials = jsondecode(file(var.service_account_key_path))
-  custom_service_account_email = local.service_account_credentials.client_email
-}
-
 
 data "google_project" "project" {} # Для отримання project_number
 
@@ -86,50 +81,59 @@ resource "google_container_node_pool" "primary_nodes" {
   # Якщо кластер зональний, потрібно вказати `node_locations = [var.zone]`
 }
 
-# GCS Бакет для вихідного коду
-resource "google_storage_bucket" "source_code_bucket" {
-  name                        = "${var.project_id}-${var.source_code_bucket_name_suffix}"
-  location                    = var.region 
-  uniform_bucket_level_access = true       # Рекомендовано для IAM
-  force_destroy               = true       # Дозволяє видалити бакет, навіть якщо він не порожній (обережно!)
 
-  versioning {
-    enabled = true
-  }
 
-  depends_on = [google_project_service.gcr_api] # Залежність від Cloud Storage API
+
+
+locals {
+  service_account_credentials = jsondecode(file(var.service_account_key_path))
+  owner_service_account_email = local.service_account_credentials.client_email
 }
 
-# Cloud Build Тригер
-resource "google_cloudbuild_trigger" "pipeline_trigger" {
+resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   provider    = google-beta
   project     = var.project_id
-  name        = "canonical-gcs-trigger-test" # Нова унікальна назва
-  description = "Canonical GCS trigger structure"
-  # location    = var.region # <--- ВИДАЛЕНО ЦЕЙ РЯДОК. Нехай API сам визначить або використає 'global'.
+  name        = "tf-github-trigger-corrected" # Нова унікальна назва
+  description = "GitHub trigger based on successful manual creation"
+  location    = var.region # Встановлюємо регіон, як у ручному тригері (us-central1)
 
-  trigger_template {
-    repo_name   = "gs://${google_storage_bucket.source_code_bucket.name}"
-    branch_name = ".*" # Заповнювач
-    # project_id НЕ вказуємо тут, оскільки repo_name для GCS вже унікальний
+  # Фільтр файлів
+  included_files = [
+    "source_code_for_pipeline/**"
+  ]
+
+  # Конфігурація джерела через блок "github"
+  github {
+    owner = "AnokHaydenCopilot"
+    name  = "Terraform-Study" # Назва репозиторію
+
+    push {
+      branch = "^refs/heads/main$" # Або просто "main", якщо регулярний вираз не спрацює в TF
+                                   # Але "^main$" є більш точним відповідником з JSON
+    }
   }
 
-  filename = "cloudbuild.yaml" # Вказує на cloudbuild.yaml в корені об'єкта
+  # Шлях до cloudbuild.yaml відносно кореня репозиторію
+  filename = "source_code_for_pipeline/cloudbuild.yaml"
 
-  included_files = ["**/*.zip"] # Реагуємо тільки на завантаження ZIP архівів
+  # Вказуємо сервісний акаунт, від імені якого буде виконуватися білд
+  # Це має бути ваш Owner SA, як у ручному тригері.
+  # Переконайтеся, що цей SA має необхідні права для виконання кроків білду
+  # (роль Owner їх має, але це також означає, що він має права roles/iam.serviceAccountUser на самого себе,
+  # щоб Cloud Build міг його використовувати, та права roles/cloudbuild.builds.worker - хоча Owner це покриває).
+  service_account = "projects/${var.project_id}/serviceAccounts/${local.owner_service_account_email}"
 
-  # Substitutions ПОКИ ЩО НЕ ДОДАЄМО.
-  # substitutions = {
-  #   "_GKE_CLUSTER_NAME" = google_container_cluster.primary.name
-  #   "_GKE_LOCATION"     = google_container_cluster.primary.location
-  #   "_IMAGE_NAME"       = "my-app-final-test"
-  # }
-
-  # Сервісний акаунт для виконання білду: стандартний SA Cloud Build.
-  # Його дозволи вже налаштовані вище.
+  substitutions = {
+    "_GKE_CLUSTER_NAME" = google_container_cluster.primary.name
+    "_GKE_LOCATION"     = google_container_cluster.primary.location
+    "_IMAGE_NAME"       = var.image_name_for_pipeline
+  }
 
   depends_on = [
     google_project_service.cloudbuild_api,
-    google_storage_bucket.source_code_bucket,
+    google_container_cluster.primary,
+    # Якщо ви раніше надавали специфічні права вашому Owner SA (наприклад, cloudbuild.builds.editor),
+    # то залежності від тих ресурсів google_project_iam_member мають бути тут.
+    # Але якщо він просто Owner, то додаткові IAM bindings для нього можуть бути не потрібні.
   ]
 }
