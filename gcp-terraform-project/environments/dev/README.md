@@ -1,62 +1,9 @@
-# Середовище Розробки
+Створює Cloud Func
+Приклад
+Entrypoint
+https://us-central1-focused-ion-452816-h5.cloudfunctions.net/http_name_test
+Через Postman
+{"name": "Koko", "age": 30, "city": "New York"}
+Відповідь
+Hello Koko
 
-Ця директорія містить конфігурацію Terraform для **середовища розробки** (development) проєкту GCP.
-
-## Огляд Проєкту
-
-Мета цього проєкту — керувати інфраструктурою GCP за допомогою Terraform. Середовище `dev` використовується для тестування та розробки.
-
-## Структура
-
-- **main.tf**: Містить основну конфігурацію Terraform.
-- **variables.tf**: Визначає вхідні змінні для середовища.
-- **outputs.tf**: Вказує вихідні дані конфігурації Terraform.
-- **backend.tf**: Налаштовує віддалене сховище для стану.
-
-## Попередні Умови
-
-1. Встановіть [Terraform](https://www.terraform.io/downloads.html).
-2. Автентифікуйтесь у GCP за допомогою CLI `gcloud`:
-   ```bash
-   gcloud auth application-default login
-   ```
-3. Переконайтесь, що у вас є необхідні дозволи для керування ресурсами в проєкті GCP.
-
-## Використання
-
-1. Ініціалізуйте робочу директорію Terraform:
-   ```bash
-   terraform init
-   ```
-
-2. Перевірте конфігурацію:
-   ```bash
-   terraform validate
-   ```
-
-3. Створіть план змін:
-   ```bash
-   terraform plan
-   ```
-
-4. Застосуйте зміни:
-   ```bash
-   terraform apply
-   ```
-
-## Примітки
-
-- Переконайтесь, що ви переглянули файл `variables.tf` і надали відповідні значення для всіх необхідних змінних.
-- Файл стану зберігається віддалено для забезпечення узгодженості між членами команди.
-
-## Очищення
-
-Щоб видалити всі ресурси, створені цією конфігурацією, виконайте:
-```bash
-terraform destroy
-```
-
-## Посилання
-
-- [Документація Terraform](https://www.terraform.io/docs)
-- [Документація Google Cloud Platform](https://cloud.google.com/docs)

@@ -95,7 +95,7 @@ resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   location    = var.region # Або "global", залежно від вашого підключення
 
   included_files = [
-    "source_code_for_pipeline/**"
+    "gcp-terraform-project/source_code_for_pipeline/**"
   ]
 
   github {
