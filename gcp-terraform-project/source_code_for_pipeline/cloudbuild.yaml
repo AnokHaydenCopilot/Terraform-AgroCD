@@ -1,14 +1,35 @@
-# gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml
 steps:
+# Крок для відладки: показати структуру директорій
+- name: 'gcr.io/cloud-builders/gcloud' # Можна використати 'ubuntu' або 'alpine' з entrypoint: bash
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    echo "--- Current directory (where cloudbuild.yaml is executed from):"
+    pwd
+    echo "--- Listing contents of current directory:"
+    ls -la
+    echo "--- Listing contents of ./app (expected location of Dockerfile context):"
+    ls -la ./app || echo "Directory ./app NOT FOUND"
+    echo "--- Listing contents of /workspace (root of cloned repo):"
+    ls -laR /workspace # Рекурсивний лістинг всього /workspace
+    echo "--- Trying to find Dockerfile:"
+    find /workspace -name Dockerfile
+
 # 1. Збірка Docker образу
 - name: 'gcr.io/cloud-builders/docker'
-  # Робоча директорія цього кроку - це директорія, де лежить cloudbuild.yaml
-  # Тобто, gcp-terraform-project/source_code_for_pipeline/
-  # Директорія 'app' знаходиться на тому ж рівні, що й 'kubernetes'
-  # відносно директорії, де лежить cloudbuild.yaml.
-  # Тому шлях до Dockerfile тепер просто './app'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA', './app'] 
+  # Спробуємо явно вказати шлях до Dockerfile (-f) І контекст
+  # Передбачається, що cloudbuild.yaml знаходиться в source_code_for_pipeline
+  # а Dockerfile в source_code_for_pipeline/app/Dockerfile
+  args: [
+    'build',
+    '-t', 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA',
+    '-f', './app/Dockerfile',  # Шлях до Dockerfile відносно місця запуску cloudbuild.yaml
+    './app'                    # Контекст збірки (директорія app)
+  ]
   id: 'Build Docker Image'
+
+
 
 # 2. Публікація Docker образу
 - name: 'gcr.io/cloud-builders/docker'
