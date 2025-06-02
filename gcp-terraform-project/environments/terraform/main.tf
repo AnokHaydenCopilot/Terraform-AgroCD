@@ -4,13 +4,8 @@ provider "google" {
   region      = var.region
 }
 
-provider "google-beta" {   #Для тригеру
-  credentials = file(var.service_account_key_path)
-  project     = var.project_id
-  region      = var.region
-}
-
-data "google_project" "project" {} # Для отримання project_number
+# data "google_project" "project" {} 
+data "google_client_config" "default" {} 
 
 # Включаємо необхідні API
 resource "google_project_service" "gke_api" {
@@ -120,6 +115,82 @@ resource "google_project_service" "iamcredentials_api" {
  disable_on_destroy = false
 }
 
+resource "google_compute_network" "custom_vpc" {
+  project                 = var.project_id
+  name                    = var.custom_vpc_name
+  auto_create_subnetworks = false 
+  routing_mode            = "REGIONAL" 
+  depends_on = [
+    google_project_service.compute_api 
+  ]
+}
+
+resource "google_compute_subnetwork" "gke_subnet" {
+  project                  = var.project_id
+  name                     = var.gke_subnet_name
+  ip_cidr_range            = var.gke_subnet_ip_cidr
+  network                  = google_compute_network.custom_vpc.id
+  region                   = var.region
+  private_ip_google_access = true # Дозволяє нодам без зовнішніх IP доступ до Google API
+
+  secondary_ip_range {
+    range_name    = var.gke_pods_ip_cidr_name
+    ip_cidr_range = var.gke_pods_ip_cidr
+  }
+  secondary_ip_range {
+    range_name    = var.gke_services_ip_cidr_name
+    ip_cidr_range = var.gke_services_ip_cidr
+  }
+
+  depends_on = [google_compute_network.custom_vpc]
+}
+
+resource "google_compute_firewall" "allow_internal_gke_subnet" {
+  project = var.project_id
+  name    = "${var.custom_vpc_name}-allow-internal-gke"
+  network = google_compute_network.custom_vpc.id
+
+  allow {
+    protocol = "icmp"
+  }
+  allow {
+    protocol = "tcp"
+    ports    = ["0-65535"] 
+  }
+  allow {
+    protocol = "udp"
+    ports    = ["0-65535"] 
+  }
+  source_ranges = [var.gke_subnet_ip_cidr, var.gke_pods_ip_cidr, var.gke_services_ip_cidr]
+}
+# IAP
+resource "google_compute_firewall" "allow_ssh_iap_to_gke_nodes" {
+  project = var.project_id
+  name    = "${var.custom_vpc_name}-allow-ssh-iap"
+  network = google_compute_network.custom_vpc.id
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  source_ranges = ["35.235.240.0/20"] # IP діапазон Google IAP для TCP forwarding
+  target_tags   = [var.gke_node_network_tag] 
+}
+# LoadBalancer + Health check
+resource "google_compute_firewall" "allow_gclb_health_checks_to_gke_nodes" {
+  project = var.project_id
+  name    = "${var.custom_vpc_name}-allow-gclb-health-checks"
+  network = google_compute_network.custom_vpc.id
+
+  allow {
+    protocol = "tcp"
+    ports    = ["10256"]
+  }
+  # IP діапазони Google для Load Balancer'ів та Health Check'ів
+  source_ranges = ["130.211.0.0/22", "35.191.0.0/16", "209.85.152.0/22", "209.85.204.0/22"]
+  target_tags   = [var.gke_node_network_tag]
+}
+
 # GKE Кластер
 resource "google_container_cluster" "primary" {
   name     = var.gke_cluster_name
@@ -127,9 +198,24 @@ resource "google_container_cluster" "primary" {
   deletion_protection = false
   # Видаляємо дефолтний node pool, щоб створити свій з потрібними параметрами
   remove_default_node_pool = true
-  initial_node_count       = 1 # Потрібно для remove_default_node_pool
+  initial_node_count       = 1 
 
-  depends_on = [google_project_service.gke_api]
+  network    = google_compute_network.custom_vpc.id 
+  subnetwork = google_compute_subnetwork.gke_subnet.id 
+
+  ip_allocation_policy {
+    cluster_secondary_range_name  = google_compute_subnetwork.gke_subnet.secondary_ip_range[0].range_name
+    services_secondary_range_name = google_compute_subnetwork.gke_subnet.secondary_ip_range[1].range_name
+  }
+  # networking_mode = "VPC_NATIVE" 
+
+  # Для доступу до Control Plane (Закритий)
+  # master_authorized_networks_config {}
+                                        
+  depends_on = [
+    google_project_service.gke_api,
+    google_compute_subnetwork.gke_subnet
+  ]
 }
 
 resource "google_container_node_pool" "primary_nodes" {
@@ -137,6 +223,7 @@ resource "google_container_node_pool" "primary_nodes" {
   cluster    = google_container_cluster.primary.name
   location   = google_container_cluster.primary.location 
   node_count = var.gke_node_count
+  project    = var.project_id
 
   management {
     auto_repair  = true
@@ -153,6 +240,7 @@ resource "google_container_node_pool" "primary_nodes" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform" # Повний доступ до GCP API
     ]
+    tags = [var.gke_node_network_tag, var.gke_cluster_name]
   }
 
   # Для регіональних кластерів, ноди будуть розподілені по зонах автоматично
@@ -199,7 +287,7 @@ resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   ]
 }
 
-# Data source для отримання endpoint кластера.
+# Data source для отримання endpoint кластера. (Моя стара версія для kubeconfig)
 data "google_container_cluster" "primary_for_providers" {
   name     = google_container_cluster.primary.name
   location = google_container_cluster.primary.location
@@ -208,28 +296,21 @@ data "google_container_cluster" "primary_for_providers" {
 }
 
 provider "kubernetes" {
-
-  # Використовуємо kubeconfig
-  config_path    = "~/.kube/config" # Стандартний шлях до kubeconfig.
-                                    # Якщо ваш kubeconfig в іншому місці, вкажіть правильний шлях.
-  config_context = "gke_${var.project_id}_${google_container_cluster.primary.location}_${google_container_cluster.primary.name}"
-                   # Назва контексту, яку генерує gcloud.
-                   # Перевірте точну назву контексту у вашому ~/.kube/config файлі
-                   # або за допомогою `kubectl config current-context`.
-                   # Для регіональних кластерів, `google_container_cluster.primary.location` буде регіоном.
+  host                   = "https://${google_container_cluster.primary.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 }
 
-# Налаштування Helm провайдера
 provider "helm" {
   kubernetes {
-    # Використовуємо kubeconfig
-    config_path    = "~/.kube/config"
-    config_context = "gke_${var.project_id}_${google_container_cluster.primary.location}_${google_container_cluster.primary.name}"
+    host                   = "https://${google_container_cluster.primary.endpoint}"
+    token                  = data.google_client_config.default.access_token
+    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
   }
 }
 
 resource "helm_release" "prometheus_stack" {
-  provider = helm
+  provider = helm 
 
   name       = "prometheus-stack"
   repository = "https://prometheus-community.github.io/helm-charts"
@@ -237,13 +318,12 @@ resource "helm_release" "prometheus_stack" {
   version    = "72.6.2"
   namespace  = "monitoring"
 
-  create_namespace = true # Створеться namespace "monitoring"
+  create_namespace = true
 
-  # Налаштовуємо Grafana сервіс на тип LoadBalancer
-  # та встановлюємо пароль адміністратора Grafana
   set {
     name  = "grafana.adminPassword"
-    value = var.grafana_admin_password 
+    value = var.grafana_admin_password
+    type  = "string" 
   }
   set {
     name  = "grafana.service.type"
@@ -251,9 +331,8 @@ resource "helm_release" "prometheus_stack" {
   }
 
   depends_on = [
-    google_container_node_pool.primary_nodes, # Кластер має бути готовий
-    data.google_container_cluster.primary_for_providers, # Для налаштування helm провайдера
+    google_container_node_pool.primary_nodes,
   ]
 
-  timeout = 900 
+  timeout = 900
 }

@@ -74,3 +74,51 @@ variable "grafana_admin_password" {
   sensitive   = false
 }
 
+
+variable "custom_vpc_name" {
+  description = "Назва для кастомної VPC мережі."
+  type        = string
+  default     = "gke-custom-vpc"
+}
+
+variable "gke_subnet_name" {
+  description = "Назва для підмережі GKE."
+  type        = string
+  default     = "gke-primary-subnet"
+}
+
+variable "gke_subnet_ip_cidr" {
+  description = "Основний IP CIDR діапазон для підмережі GKE (для нод)."
+  type        = string
+  default     = "10.10.0.0/20" 
+}
+
+variable "gke_pods_ip_cidr_name" {
+  description = "Назва вторинного діапазону для GKE Pods."
+  type        = string
+  default     = "gke-pods-range"
+}
+
+variable "gke_pods_ip_cidr" {
+  description = "Вторинний IP CIDR діапазон для GKE Pods."
+  type        = string
+  default     = "10.20.0.0/16" 
+}
+
+variable "gke_services_ip_cidr_name" {
+  description = "Назва вторинного діапазону для GKE Services."
+  type        = string
+  default     = "gke-services-range"
+}
+
+variable "gke_services_ip_cidr" {
+  description = "Вторинний IP CIDR діапазон для GKE Services."
+  type        = string
+  default     = "10.30.0.0/20" 
+}
+
+variable "gke_node_network_tag" {
+  description = "Мережевий тег для нод GKE, для застосування правил брандмауера."
+  type        = string
+  default     = "gke-node"
+}
