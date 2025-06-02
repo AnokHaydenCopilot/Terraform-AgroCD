@@ -43,7 +43,6 @@ steps:
       --project "$PROJECT_ID"
     
     echo "Deploying image gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA to GKE cluster ${_GKE_CLUSTER_NAME}"
-    # Правильний шлях до deployment.yaml від /workspace
     sed "s|IMAGE_PLACEHOLDER|gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA|g" ./gcp-terraform-project/source_code_for_pipeline/kubernetes/deployment.yaml > /tmp/deployment.yaml 
     cat /tmp/deployment.yaml
     kubectl apply -f /tmp/deployment.yaml

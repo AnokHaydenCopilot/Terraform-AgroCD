@@ -5,7 +5,7 @@ metadata:
   labels:
     app: my-simple-app
 spec:
-  replicas: 1 # Можете змінити на 2, якщо потрібно
+  replicas: 1 
   selector:
     matchLabels:
       app: my-simple-app
@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: my-simple-app-container
-        image: IMAGE_PLACEHOLDER # Цей плейсхолдер буде замінено Cloud Build
+        image: IMAGE_PLACEHOLDER 
         ports:
         - containerPort: 80
 
@@ -32,4 +32,4 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer # Це створить зовнішній IP для доступу
+  type: LoadBalancer 

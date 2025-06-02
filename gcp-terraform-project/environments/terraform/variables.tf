@@ -19,13 +19,16 @@ variable "zone" {
 variable "gke_cluster_name" {
   description = "Назва Kubernetes кластера."
   type        = string
-  default     = "my-demo-cluster"
+  default     = "tf-demo-cluster"
 }
 
 variable "gke_node_machine_type" {
   description = "Тип машини для нод GKE."
   type        = string
-  default     = "e2-micro"
+  default     = "e2-medium"  #e2-micro хватає на GKE, але не хватає на HELM
+  # EST при e2-micro 
+  # GKE + pods = 9m
+  # Helm = ~24m
 }
 
 variable "gke_node_disk_type" {
@@ -63,3 +66,11 @@ variable "image_name_for_pipeline" {
   type        = string
   default     = "my-simple-gke-app"
 }
+
+variable "grafana_admin_password" {
+  description = "Пароль для адміністратора Grafana. Змініть на надійний!"
+  type        = string
+  default     = "YourSecurePassword123!" 
+  sensitive   = false
+}
+
