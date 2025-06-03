@@ -68,7 +68,7 @@
 
 ## Структура Проекту
 
-
+```
 gcp-terraform-project/
 ├── kubernetes-root.json # Ключ Сервісного Акаунту GCP (шлях вказаний у variables.tf)
 ├── service-account-key.json # (Може бути тим самим файлом, або для інших цілей)
@@ -89,7 +89,7 @@ gcp-terraform-project/
 ├── kubernetes/ # Kubernetes маніфести для додатку
 │ └── deployment.yaml
 └── cloudbuild.yaml # Конфігурація для Google Cloud Build
-
+```
 **Важливо:** Файл `kubernetes-root.json` (та будь-які інші файли ключів) **НІКОЛИ** не повинен зберігатися у публічному Git репозиторії. Додайте його до `.gitignore`.
 
 ## Вимоги
@@ -115,8 +115,7 @@ gcp-terraform-project/
         ```bash
         # Приклад для Windows з Winget
         winget install Helm.Helm
-        ```
-    *   
+        ```   
 
 3.  **Налаштування Сервісного Акаунту GCP:**
     *   В консолі GCP (IAM & Admin -> Service Accounts) створіть сервісний акаунт.
@@ -137,7 +136,7 @@ gcp-terraform-project/
     *   Відкрийте файл `environments/dev/variables.tf`.
     *   Для змінної `grafana_admin_password` встановлено стандартне значення "YourSecurePassword123!". **Настійно рекомендується змінити його на унікальний та надійний пароль.**
     *   Для змінної `project_id` встановлено стандартне значення "focused-ion-452816-h5". Змініть його на Ваш.
-    *   Перегляньте інші змінні (наприклад, `region` зі стандартним значенням "us-central1") та адаптуйте їх, якщо потрібно.
+    *   Перегляньте інші змінні (наприклад, `region` зі стандартним значенням "us-central1")
 
 5.  **(Рекомендовано) Налаштування GCS Бекенду для Зберігання Стану Terraform:**
     *   Створіть GCS бакет вручну в GCP (наприклад, через консоль або `gsutil mb gs://your-unique-tfstate-bucket-name`).
@@ -170,13 +169,13 @@ gcp-terraform-project/
 8.  **Перевірка та Застосування Конфігурації Terraform:**
     Ви можете передати значення змінних через командний рядок, щоб перекрити стандартні значення з `variables.tf`.
     ```bash
-    # (Опціонально) Перевірка плану. Замініть значення, якщо потрібно.
+    # (Опціонально) Перевірка плану.
     terraform plan -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
 
-    # Застосування конфігурації. Замініть значення, якщо потрібно.
+    # Застосування конфігурації.
     terraform apply -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
     ```
-    Замініть `your-gcp-project-id` на ваш реальний ID проекту (якщо він відрізняється від стандартного "focused-ion-452816-h5") та `YourActualGrafanaPassword123!` на ваш обраний пароль для Grafana (стандартний "YourSecurePassword123!" не рекомендований для використання). Якщо значення у `variables.tf` вас влаштовують (після зміни паролю Grafana там), ви можете просто виконати `terraform plan` та `terraform apply` без аргументів `-var`.
+    Замініть `your-gcp-project-id` на ваш реальний ID проекту (за замовченням "focused-ion-452816-h5") та `YourActualGrafanaPassword123!` на ваш обраний пароль для Grafana (стандартний "YourSecurePassword123!" не рекомендований для використання). Якщо значення у `variables.tf` вас влаштовують (після зміни паролю Grafana там), ви можете просто виконати `terraform plan` та `terraform apply` без аргументів `-var`.
 
 9.  **Тестування CI/CD Пайплайну (Cloud Build Trigger):**
     *   Terraform створив тригер `tf-github-update`. Цей тригер автоматично спрацьовуватиме при push в гілку `main` у файли, що знаходяться в `gcp-terraform-project/source_code_for_pipeline/**`.
@@ -196,7 +195,7 @@ gcp-terraform-project/
         1.  Переконайтесь, що `kubectl` налаштований
         2.  Виконайте команду для отримання інформації про сервіс:
             ```bash
-            kubectl get service my-simple-app --namespace default
+            kubectl get service my-simple-app-service --namespace default
             ```
         3.  Знайдіть `EXTERNAL-IP` для сервісу `my-simple-app` (тип `LoadBalancer`).
         4.  Відкрийте `http://<EXTERNAL-IP_my-simple-app>` у вашому браузері.
@@ -207,7 +206,7 @@ gcp-terraform-project/
 ```bash
 cd environments/dev/
 terraform destroy -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
-
+```
 Примітки
 Переконайтеся, що сервісний акаунт, ключ якого (kubernetes-root.json) використовується, має достатньо дозволів для виконання всіх операцій.
 disable_on_destroy = false для ресурсів google_project_service означає, що API не будуть вимкнені автоматично при видаленні цих ресурсів Terraform, якщо вони використовуються іншими ресурсами або були ввімкнені поза Terraform.
