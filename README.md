@@ -1,116 +1,213 @@
-# Terraform GCP: GKE Кластер та CI/CD Пайплайн з Cloud Build та GitHub
+# Terraform GCP: GKE Кластер з Custom VPC, CI/CD через Cloud Build та Моніторинг з Prometheus/Grafana
 
-Цей проект демонструє створення інфраструктури в Google Cloud Platform (GCP) за допомогою Terraform, включаючи:
-*   Регіональний кластер Google Kubernetes Engine (GKE).
-*   CI/CD пайплайн, що використовує Google Cloud Build, інтегрований з GitHub репозиторієм для автоматичної збірки Docker-образів та їх розгортання в GKE.
-*   GCS Бакет для зберігання стану Terraform (рекомендовано).
+Цей проект демонструє створення комплексної інфраструктури в Google Cloud Platform (GCP) за допомогою Terraform. Він включає:
 
-## Архітектура та компоненти
+*   **Google Kubernetes Engine (GKE) Кластер:** Регіональний кластер GKE, розгорнутий у кастомній VPC.
+*   **Кастомну VPC Мережу:** Спеціальна Virtual Private Cloud (VPC) мережа з підмережею для GKE.
+*   **Кастомний Пул Вузлів GKE:** Налаштовуваний пул вузлів для GKE.
+*   **Правила Брандмауера:** Налаштування правил для внутрішнього трафіку, доступу через IAP (SSH) та для балансувальників навантаження GCP (Health Checks).
+*   **CI/CD Пайплайн:** Використовує Google Cloud Build, інтегрований з GitHub репозиторієм для автоматичної збірки Docker-образів та їх розгортання в GKE.
+*   **Моніторинг:** Розгортання стеку Prometheus та Grafana за допомогою Helm для моніторингу кластера.
+*   **Управління API:** Явне ввімкнення необхідних GCP сервісів.
+
+## Ключові Компоненти та Архітектура
 
 1.  **Terraform Конфігурація:**
-    *   Знаходиться в директорії `environments/terraform/`.
+    *   Знаходиться в директорії `environments/dev/`.
     *   Керує створенням всіх GCP ресурсів.
-    *   Використовує сервісний акаунт GCP для автентифікації (ключ зберігається в `service-account-key.json` на рівень вище директорії `environments/`).
+    *   Використовує сервісний акаунт GCP для автентифікації (ключ, вказаний у `variables.tf` як `../../kubernetes-root.json`, що означає його розміщення у корені проекту `gcp-terraform-project/`).
 
-2.  **Google Kubernetes Engine (GKE) Кластер:**
-    *   **Тип:** Регіональний.
-    *   **Регіон:** `us-central1`.
-    *   **Зони:** Вузли розподілені по зонах `us-central1-a`, `us-central1-b`, `us-central1-c` (за замовчуванням для регіональних кластерів).
-    *   **Пули вузлів:** Один пул вузлів з наступними характеристиками для кожного вузла:
-        *   **Кількість вузлів:** Налаштовується (у нашому прикладі було 2, по одному на кожну з активних зон, якщо їх 2, або відповідно до `node_count`).
-        *   **Тип машини:** `e2-micro`.
-        *   **Тип диска:** `pd-balanced`.
-        *   **Розмір диска:** 20 ГБ (мінімум 12 ГБ потрібно для образу ОС).
-    *   Автоматичне відновлення та оновлення вузлів увімкнено.
+2.  **Мережева Інфраструктура:**
+    *   **Custom VPC:** `google_compute_network.custom_vpc` (стандартна назва: "gke-custom-vpc").
+    *   **GKE Subnet:** `google_compute_subnetwork.gke_subnet` (стандартна назва: "gke-primary-subnet") з основним CIDR ("10.10.0.0/20") та вторинними діапазонами для Pods (назва "gke-pods-range", CIDR "10.20.0.0/16") та Services (назва "gke-services-range", CIDR "10.30.0.0/20").
+    *   **Firewall Rules:**
+        *   `allow_internal_gke_subnet`: Дозволяє весь трафік всередині GKE підмережі, подів та сервісів.
+        *   `allow_ssh_iap_to_gke_nodes`: Дозволяє SSH доступ до вузлів GKE через IAP.
+        *   `allow_gclb_health_checks_to_gke_nodes`: Дозволяє перевірки стану від балансувальників навантаження Google.
 
-3.  **Google Cloud Storage (GCS) Бакет для стану Terraform:**
-    *   Для зберігання файлу стану Terraform (`terraform.tfstate`) у безпечному та спільному місці.
-    *   Налаштовується через файл `backend.tf` всередині директорії `environments/terraform/`.
-    *   Цей бакет має бути створений **перед** першим запуском `terraform init` з конфігурацією бекенду.
+3.  **Google Kubernetes Engine (GKE) Кластер:**
+    *   **Ресурс:** `google_container_cluster.primary` (стандартна назва: "tf-demo-cluster").
+    *   **Тип:** Регіональний (стандартна локація: "us-central1").
+    *   **Мережа:** Використовує створену кастомну VPC та підмережу.
+    *   **IP Allocation Policy:** Використовує вторинні діапазони підмережі для подів та сервісів.
+    *   **Дефолтний пул вузлів видалено.**
 
-4.  **CI/CD Пайплайн з Google Cloud Build та GitHub:**
-    *   **Джерело коду:** GitHub репозиторій (`AnokHaydenCopilot/Terraform-Study`).
-    *   **Тригер:** Cloud Build тригер, налаштований на спрацювання при подіях `push` у вказану гілку (наприклад, `main`) GitHub репозиторію. Тригер активується при змінах у директорії `gcp-terraform-project/source_code_for_pipeline/`.
-    *   **Файл конфігурації Cloud Build:** `gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml`. Цей файл визначає кроки пайплайну.
-    *   **Процес пайплайну:**
-        1.  **Збірка Docker-образу:** Використовується `Dockerfile` з директорії `gcp-terraform-project/source_code_for_pipeline/app/` для збірки Docker-образу простого веб-додатку.
-        2.  **Публікація образу:** Зібраний Docker-образ публікується в Google Container Registry (GCR).
-        3.  **Розгортання в GKE:**
-            *   Отримуються облікові дані для доступу до GKE кластера.
-            *   Оновлюється Kubernetes маніфест (`gcp-terraform-project/source_code_for_pipeline/kubernetes/deployment.yaml`) актуальним тегом Docker-образу.
-            *   Оновлений маніфест застосовується до GKE кластера за допомогою `kubectl apply`.
-            *   Створюється/оновлюється Kubernetes Deployment та Service (типу LoadBalancer) для доступу до додатку.
-    *   **Сервісний акаунт для виконання білдів:** Використовується сервісний акаунт, вказаний у Terraform (ваш "Owner" SA), якому надані необхідні дозволи для взаємодії з GCR та GKE. Налаштування логування для білду (`CLOUD_LOGGING_ONLY`) вказано в `cloudbuild.yaml`.
+4.  **GKE Пул Вузлів:**
+    *   **Ресурс:** `google_container_node_pool.primary_nodes`.
+    *   **Кількість вузлів:** 1.
+    *   **Тип машини:** "e2-medium".
+    *   **Тип та розмір диска:** "pd-balanced", 20 ГБ.
+    *   **OAuth Scopes:** `https://www.googleapis.com/auth/cloud-platform` для повного доступу до GCP API.
+    *   **Теги:** "gke-node" (стандартний тег для вузлів) та "tf-demo-cluster" (назва кластера).
+    *   Автоматичне відновлення та оновлення увімкнено.
 
-5.  **Приклад Додатку:**
-    *   Простий веб-сервер на базі Nginx, що відображає статичну HTML-сторінку (`index.html`).
-    *   Знаходиться в `gcp-terraform-project/source_code_for_pipeline/app/`.
+5.  **CI/CD Пайплайн (Google Cloud Build та GitHub):**
+    *   **Тригер:** `google_cloudbuild_trigger.github_pipeline_trigger` (назва `tf-github-update`).
+    *   **Джерело коду:** GitHub репозиторій `AnokHaydenCopilot/Terraform-Study`.
+    *   **Умова спрацювання:** Push в гілку `main` при змінах у `gcp-terraform-project/source_code_for_pipeline/**`.
+    *   **Файл конфігурації Cloud Build:** `gcp-terraform-project/source_code_for_pipeline/cloudbuild.yaml`.
+    *   **Підстановки для Cloud Build:**
+        *   `_GKE_CLUSTER_NAME`: "tf-demo-cluster" (назва GKE кластера)
+        *   `_GKE_LOCATION`: "us-central1" (локація GKE кластера)
+        *   `_IMAGE_NAME`: "my-simple-gke-app" (назва образу для пайплайну)
+    *   **Процес пайплайну (визначається в `cloudbuild.yaml`):**
+        1.  Збірка Docker-образу (з `source_code_for_pipeline/app/Dockerfile`).
+        2.  Публікація образу в Google Container Registry (GCR) або Artifact Registry.
+        3.  Розгортання/оновлення додатку в GKE (застосування `source_code_for_pipeline/kubernetes/deployment.yaml`).
+    *   **Сервісний акаунт для білдів:** Використовується той самий сервісний акаунт, що й для Terraform (визначений з `kubernetes-root.json`).
 
-## Структура проекту
+6.  **Моніторинг (Prometheus & Grafana):**
+    *   **Ресурс:** `helm_release.prometheus_stack`.
+    *   **Чарт:** `kube-prometheus-stack` з репозиторію `prometheus-community`.
+    *   **Неймспейс:** `monitoring` (створюється автоматично).
+    *   **Пароль адміністратора Grafana:** Стандартний пароль "YourSecurePassword123!" (рекомендується змінити!).
+    *   **Сервіс Grafana:** Типу `LoadBalancer` для зовнішнього доступу.
 
-Нижче наведено структуру директорій проекту в GitHub репозиторії:
+7.  **Управління API GCP:**
+    *   Численні ресурси `google_project_service` для активації необхідних API (Container, Cloud Build, GCR, IAM, Compute тощо).
 
-```
-gcp-terraform-project/  <- Корінь GitHub репозиторію ("Terraform-Study")
+## Структура Проекту
+
+
+gcp-terraform-project/
+├── kubernetes-root.json # Ключ Сервісного Акаунту GCP (шлях вказаний у variables.tf)
+├── service-account-key.json # (Може бути тим самим файлом, або для інших цілей)
+│
 ├── environments/
-│   └── terraform/          <- Terraform код для інфраструктури
-│       ├── main.tf
-│       ├── variables.tf
-│       ├── outputs.tf
-│       └── backend.tf      <- (Опціонально) Для GCS бекенду стану
-├── source_code_for_pipeline/ <- Код та конфігурації для CI/CD пайплайну
-│   ├── app/                  <- Код простого веб-додатку
-│   │   ├── Dockerfile
-│   │   └── index.html
-│   ├── kubernetes/           <- Kubernetes маніфести
-│   │   └── deployment.yaml
-│   └── cloudbuild.yaml       <- Конфігурація для Google Cloud Build
-├── .gitattributes            <- Файл конфігурації Git
-├── .gitignore                <- Файл для ігнорування файлів Git
-└── README.md                 <- Цей файл опису
+│ └── dev/ # Terraform код для інфраструктури
+│ ├── main.tf 
+│ ├── variables.tf 
+│ ├── outputs.tf 
+│ ├── backend.tf 
+│ ├── .terraform.lock.hcl
+│ └── ... # Інші файли Terraform, логи, стан (.terraform/)
+│
+└── source_code_for_pipeline/ # Код та конфігурації для CI/CD пайплайну
+├── app/ # Приклад простого веб-додатку
+│ ├── Dockerfile
+│ └── index.html
+├── kubernetes/ # Kubernetes маніфести для додатку
+│ └── deployment.yaml
+└── cloudbuild.yaml # Конфігурація для Google Cloud Build
 
-**Важливо:** Файл `service-account-key.json` НІКОЛИ не повинен зберігатися у публічному (і навіть приватному, якщо це можливо) Git репозиторії. Він має бути доступний локально для Terraform під час виконання `apply`. Шлях до нього в конфігурації провайдера: `file("${path.module}/../../service-account-key.json")` (`).
-```
+**Важливо:** Файл `kubernetes-root.json` (та будь-які інші файли ключів) **НІКОЛИ** не повинен зберігатися у публічному Git репозиторії. Додайте його до `.gitignore`.
+
 ## Вимоги
 
 *   Акаунт Google Cloud Platform з увімкненим білінгом.
-*   Встановлений Terraform CLI.
-*   Встановлений `gcloud` CLI (Google Cloud SDK).
-*   Ключ сервісного акаунту GCP з необхідними дозволами (рекомендовано роль "Owner" для простоти на етапі розробки, або більш гранулярні ролі для production).
+*   Встановлений **Terraform CLI**.
+*   Встановлений **Helm CLI**.
+*   **Ключ сервісного акаунту GCP (`kubernetes-root.json`)** з необхідними дозволами (наприклад, `Owner` для розробки, або більш гранулярні ролі для production).
 *   GitHub репозиторій.
-*   Налаштоване підключення Cloud Build до GitHub репозиторію через Cloud Build GitHub App.
-
+*   Налаштоване підключення Cloud Build до вашого GitHub репозиторію.
 
 ## Налаштування та Запуск
 
-1.  **Клонуйте репозиторій (якщо потрібно).**
-2.  **Розмістіть файл `service-account-key.json`** у відповідному місці (наприклад, у корені `gcp-terraform-project/`, тоді шлях у провайдері буде `file("${path.module}/../service-account-key.json")`, або на два рівні вище від `environments/terraform/`). **НЕ КОМІТЬТЕ ЦЕЙ ФАЙЛ!**
-3.  **Налаштуйте GCS Бакет для стану Terraform:**
-    *   Створіть GCS бакет вручну (наприклад, через `gsutil mb gs://your-unique-tfstate-bucket-name`).
-    *   Увімкніть версіонування для цього бакету.
-    *   Відредагуйте файл `environments/terraform/backend.tf`, вказавши назву вашого бакету.
-4.  **Підключіть ваш GitHub репозиторій до Google Cloud Build:**
-    *   **Підключення до GitHub:** Google Cloud Build підключений до GitHub репозиторію (`AnokHaydenCopilot/Terraform-Study`) за допомогою Cloud Build GitHub App.
-    *   **Джерело коду:** GitHub репозиторій.
-    *   Перейдіть в GCP Console -> Cloud Build -> Settings.
+1.  **Клонуйте Репозиторій:**
+    ```bash
+    git clone https://github.com/AnokHaydenCopilot/Terraform-Study.git
+    cd Terraform-Study/gcp-terraform-project
+    ```
+
+2.  **Встановіть Необхідні Інструменти:**
+    *   **Terraform:** [Інструкція з встановлення](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+    *   **Helm:** [Інструкція з встановлення](https://helm.sh/docs/intro/install/)
+        ```bash
+        # Приклад для Windows з Winget
+        winget install Helm.Helm
+        ```
+    *   
+
+3.  **Налаштування Сервісного Акаунту GCP:**
+    *   В консолі GCP (IAM & Admin -> Service Accounts) створіть сервісний акаунт.
+    *   Надайте йому необхідні ролі (наприклад, `Owner` для простоти на етапі розробки).
+    *   Завантажте ключ для цього сервісного акаунту у форматі JSON.
+    *   Перейменуйте завантажений файл на `kubernetes-root.json` та розмістіть його в кореневій папці проекту (`gcp-terraform-project/kubernetes-root.json`). Шлях до цього файлу (`../../kubernetes-root.json`) вже вказаний як стандартне значення для змінної `service_account_key_path` у файлі `environments/dev/variables.tf`.
+    *   **ВАЖЛИВО:** Додайте `kubernetes-root.json` до вашого файлу `.gitignore`, щоб випадково не закомітити його.
+        ```
+        # .gitignore
+        kubernetes-root.json
+        *.log
+        .terraform/
+        terraform.tfstate
+        terraform.tfstate.backup
+        ```
+
+4.  **Конфігурація Змінних Terraform:**
+    *   Відкрийте файл `environments/dev/variables.tf`.
+    *   Для змінної `grafana_admin_password` встановлено стандартне значення "YourSecurePassword123!". **Настійно рекомендується змінити його на унікальний та надійний пароль.**
+    *   Для змінної `project_id` встановлено стандартне значення "focused-ion-452816-h5". Змініть його на Ваш.
+    *   Перегляньте інші змінні (наприклад, `region` зі стандартним значенням "us-central1") та адаптуйте їх, якщо потрібно.
+
+5.  **(Рекомендовано) Налаштування GCS Бекенду для Зберігання Стану Terraform:**
+    *   Створіть GCS бакет вручну в GCP (наприклад, через консоль або `gsutil mb gs://your-unique-tfstate-bucket-name`).
+    *   Відредагуйте файл `environments/dev/backend.tf`, вказавши назву вашого бакету:
+        ```terraform
+        # environments/dev/backend.tf
+        terraform {
+          backend "gcs" {
+            bucket  = "your-unique-tfstate-bucket-name"  # Змініть на ваш бакет
+            prefix  = "kubernetes-cluster-pipeline/state"    
+          }
+        }
+        ```
+
+6.  **Підключення GitHub Репозиторію до Google Cloud Build:**
+    *   Перейдіть до Google Cloud Console -> Cloud Build -> Settings.
     *   Знайдіть секцію "Source repositories" (або "Host connections" / "Repository connections").
     *   Натисніть "Connect host" або "Connect repository".
     *   Оберіть "GitHub (Cloud Build GitHub App)" як провайдера.
-    *   Пройдіть процес автентифікації з GitHub, встановіть Cloud Build GitHub App на ваш акаунт/організацію та надайте доступ до вашого репозиторію (`AnokHaydenCopilot/Terraform-Study`).
-    *   Завершіть підключення в GCP Console.
-5.  **Ініціалізація Terraform:**
-    Перейдіть в директорію `environments/terraform/` та виконайте:
+    *   Пройдіть процес автентифікації з GitHub, встановіть Cloud Build GitHub App на ваш акаунт/організацію та надайте доступ до вашого репозиторію (`AnokHaydenCopilot/Terraform-Study` або вашого форку).
+    *   Завершіть підключення в GCP Console. (Terraform створить сам тригер, але з'єднання має існувати).
+
+7.  **Ініціалізація Terraform:**
+    Перейдіть в директорію з Terraform кодом:
     ```bash
+    cd environments/dev/
     terraform init
     ```
-6.  **Перевірка та Застосування конфігурації Terraform:**
+
+8.  **Перевірка та Застосування Конфігурації Terraform:**
+    Ви можете передати значення змінних через командний рядок, щоб перекрити стандартні значення з `variables.tf`.
     ```bash
-    terraform validate
-    terraform plan -var="project_id=your-gcp-project-id"
-    terraform apply -var="project_id=your-gcp-project-id"
+    # (Опціонально) Перевірка плану. Замініть значення, якщо потрібно.
+    terraform plan -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
+
+    # Застосування конфігурації. Замініть значення, якщо потрібно.
+    terraform apply -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
     ```
-    Замініть `your-gcp-project-id` на ваш реальний ID проекту.
-7.  **Тестування CI/CD Пайплайну:**
-    *   Внесіть зміни у файли всередині директорії `gcp-terraform-project/source_code_for_pipeline/` (наприклад, в `app/index.html`).
-    *   Закомітьте та запуште зміни у гілку, на яку налаштований Cloud Build тригер (наприклад, `main`).
-    *   Перевірте історію збірок в Cloud Build та стан розгортання в GKE.
+    Замініть `your-gcp-project-id` на ваш реальний ID проекту (якщо він відрізняється від стандартного "focused-ion-452816-h5") та `YourActualGrafanaPassword123!` на ваш обраний пароль для Grafana (стандартний "YourSecurePassword123!" не рекомендований для використання). Якщо значення у `variables.tf` вас влаштовують (після зміни паролю Grafana там), ви можете просто виконати `terraform plan` та `terraform apply` без аргументів `-var`.
+
+9.  **Тестування CI/CD Пайплайну (Cloud Build Trigger):**
+    *   Terraform створив тригер `tf-github-update`. Цей тригер автоматично спрацьовуватиме при push в гілку `main` у файли, що знаходяться в `gcp-terraform-project/source_code_for_pipeline/**`.
+    *   **Перший запуск:**
+        1.  Внесіть невеликі зміни у файли всередині директорії `gcp-terraform-project/source_code_for_pipeline/app/` (наприклад, в `index.html`).
+        2.  Закомітьте та запуште зміни у гілку `main` вашого GitHub репозиторію.
+        3.  Або запустіть тригер вручну в консолі Cloud Build:
+            *   Перейдіть до Google Cloud Console -> Cloud Build -> Triggers.
+            *   Знайдіть тригер `tf-github-update`.
+            *   Натисніть "Run trigger".
+
+10. **Перевірка Результатів та Доступ до Сервісів:**
+    Після успішного виконання `terraform apply`, Terraform відобразить значення
+    Terraform надасть інформацію для доступу до Grafana через виведення
+    *   **Доступ до прикладу додатку (`my-simple-gke-app`):**
+        Після того, як CI/CD пайплайн успішно виконається (після вашого першого push у `source_code_for_pipeline` або ручного запуску тригера), додаток буде розгорнуто.
+        1.  Переконайтесь, що `kubectl` налаштований
+        2.  Виконайте команду для отримання інформації про сервіс:
+            ```bash
+            kubectl get service my-simple-app --namespace default
+            ```
+        3.  Знайдіть `EXTERNAL-IP` для сервісу `my-simple-app` (тип `LoadBalancer`).
+        4.  Відкрийте `http://<EXTERNAL-IP_my-simple-app>` у вашому браузері.
+
+## Очищення Ресурсів
+
+Щоб видалити всі ресурси, створені Terraform (використовуйте ті ж значення змінних, що й при `apply`, якщо вони відрізняються від стандартних):
+```bash
+cd environments/dev/
+terraform destroy -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
+
+Примітки
+Переконайтеся, що сервісний акаунт, ключ якого (kubernetes-root.json) використовується, має достатньо дозволів для виконання всіх операцій.
+disable_on_destroy = false для ресурсів google_project_service означає, що API не будуть вимкнені автоматично при видаленні цих ресурсів Terraform, якщо вони використовуються іншими ресурсами або були ввімкнені поза Terraform.

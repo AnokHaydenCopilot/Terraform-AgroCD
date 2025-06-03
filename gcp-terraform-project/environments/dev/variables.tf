@@ -1,65 +1,118 @@
-variable "instance_type" {
-  description = "The type of instance to use for the development environment."
+variable "project_id" {
+  description = "ID вашого GCP проекту."
   type        = string
-  default     = "e2-micro"
-}
-
-variable "instance_count" {
-  description = "The number of instances to launch in the development environment."
-  type        = number
-  default     = 1
+  default     = "focused-ion-452816-h5"
 }
 
 variable "region" {
-  description = "The GCP region to deploy resources in."
+  description = "Регіон для розгортання ресурсів."
   type        = string
   default     = "us-central1"
 }
 
 variable "zone" {
-  description = "The GCP zone to deploy resources in."
+  description = "Зона для розгортання ресурсів (для GKE нод)."
   type        = string
-  default     = "us-central1-a"
+  default     = "us-central1-a" 
 }
 
-variable "network_name" {
-  description = "The name of the network to use for the development resources."
+variable "gke_cluster_name" {
+  description = "Назва Kubernetes кластера."
   type        = string
-  default     = "default"
+  default     = "tf-demo-cluster"
 }
 
-variable "subnet_name" {
-  description = "The name of the subnet to use for the development resources."
+variable "gke_node_machine_type" {
+  description = "Тип машини для нод GKE."
   type        = string
-  default     = "default"
+  default     = "e2-medium"  #e2-micro хватає на GKE, але не хватає на HELM
+  # EST при e2-micro 
+  # GKE + pods = 9m
+  # Helm = ~24m
 }
 
-variable "project_id" {
-  description = "ID вашого GCP проєкту"
+variable "gke_node_disk_type" {
+  description = "Тип диску для нод GKE."
   type        = string
-  default     = "focused-ion-452816-h5"
+  default     = "pd-balanced"
 }
 
-variable "instance_name" {
-  description = "The name of the instance."
-  type        = string
-  default     = "default-instance"
+variable "gke_node_disk_size_gb" {
+  description = "Розмір диску для нод GKE в ГБ."
+  type        = number
+  default     = 20
 }
 
-variable "image" {
-  description = "The image to use for the boot disk."
-  type        = string
-  default     = "debian-cloud/debian-11"
+variable "gke_node_count" {
+  description = "Кількість нод в GKE кластері."
+  type        = number
+  default     = 1
 }
 
-variable "network" {
-  description = "The name of the network to attach the instance to."
+variable "service_account_key_path" {
+  description = "Шлях до файлу ключа сервісного акаунту."
   type        = string
-  default     = "default"
+  default     = "../../kubernetes-root.json" 
 }
 
-variable "bucket" {
-  description = "The name of the storage bucket."
+variable "image_name_for_pipeline" {
+  description = "Назва Docker образу, яка буде використана в Cloud Build."
   type        = string
-  default     = "google_storage_bucket.function_code_bucket.name"
+  default     = "my-simple-gke-app"
+}
+
+variable "grafana_admin_password" {
+  description = "Пароль для адміністратора Grafana. Змініть на надійний!"
+  type        = string
+  default     = "YourSecurePassword123!" 
+  sensitive   = false
+}
+
+
+variable "custom_vpc_name" {
+  description = "Назва для кастомної VPC мережі."
+  type        = string
+  default     = "gke-custom-vpc"
+}
+
+variable "gke_subnet_name" {
+  description = "Назва для підмережі GKE."
+  type        = string
+  default     = "gke-primary-subnet"
+}
+
+variable "gke_subnet_ip_cidr" {
+  description = "Основний IP CIDR діапазон для підмережі GKE (для нод)."
+  type        = string
+  default     = "10.10.0.0/20" 
+}
+
+variable "gke_pods_ip_cidr_name" {
+  description = "Назва вторинного діапазону для GKE Pods."
+  type        = string
+  default     = "gke-pods-range"
+}
+
+variable "gke_pods_ip_cidr" {
+  description = "Вторинний IP CIDR діапазон для GKE Pods."
+  type        = string
+  default     = "10.20.0.0/16" 
+}
+
+variable "gke_services_ip_cidr_name" {
+  description = "Назва вторинного діапазону для GKE Services."
+  type        = string
+  default     = "gke-services-range"
+}
+
+variable "gke_services_ip_cidr" {
+  description = "Вторинний IP CIDR діапазон для GKE Services."
+  type        = string
+  default     = "10.30.0.0/20" 
+}
+
+variable "gke_node_network_tag" {
+  description = "Мережевий тег для нод GKE, для застосування правил брандмауера."
+  type        = string
+  default     = "gke-node"
 }
