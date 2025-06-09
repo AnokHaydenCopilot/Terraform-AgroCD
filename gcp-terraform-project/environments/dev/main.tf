@@ -284,7 +284,7 @@ resource "google_cloudbuild_trigger" "github_pipeline_trigger" {
   ]
 }
 
-# Data source для отримання endpoint кластера. (Моя стара версія для kubeconfig)
+# Data source для отримання endpoint кластера. 
 data "google_container_cluster" "primary_for_providers" {
   name     = google_container_cluster.primary.name
   location = google_container_cluster.primary.location

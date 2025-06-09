@@ -42,8 +42,6 @@ output "grafana_access_info" {
   description = "Інформація для доступу до Grafana."
   value = <<EOT
 Grafana доступна за адресою: http://${try(data.kubernetes_service_v1.grafana_service.status[0].load_balancer[0].ingress[0].ip, "PENDING_IP")}
-Логін: admin
-Пароль: ${var.grafana_admin_password}
 Ви можете перевірити статус сервісу командою: kubectl get svc prometheus-stack-grafana -n monitoring
 EOT
   depends_on = [data.kubernetes_service_v1.grafana_service]

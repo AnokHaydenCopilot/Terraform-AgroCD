@@ -36,7 +36,7 @@
     *   **Ресурс:** `google_container_node_pool.primary_nodes`.
     *   **Кількість вузлів:** 1.
     *   **Тип машини:** "e2-medium".
-    *   **Тип та розмір диска:** "pd-balanced", 20 ГБ.
+    *   **Тип та розмір диска:** "pd-standart", 20 ГБ.
     *   **OAuth Scopes:** `https://www.googleapis.com/auth/cloud-platform` для повного доступу до GCP API.
     *   **Теги:** "gke-node" (стандартний тег для вузлів) та "tf-demo-cluster" (назва кластера).
     *   Автоматичне відновлення та оновлення увімкнено.
@@ -136,7 +136,7 @@ gcp-terraform-project/
 4.  **Конфігурація Змінних Terraform:**
     *   Відкрийте файл `environments/dev/variables.tf`.
     *   Для змінної `grafana_admin_password` встановлено стандартне значення "YourSecurePassword123!". **Настійно рекомендується змінити його на унікальний та надійний пароль.**
-    *   Для змінної `project_id` встановлено стандартне значення "focused-ion-452816-h5". Змініть його на Ваш.
+    *   Для змінної `project_id` встановлено стандартне значення "montgomery-461911-u8"". Змініть його на Ваш.
     *   Перегляньте інші змінні (наприклад, `region` зі стандартним значенням "us-central1")
 
 5.  **(Рекомендовано) Налаштування GCS Бекенду для Зберігання Стану Terraform:**
@@ -176,7 +176,7 @@ gcp-terraform-project/
     # Застосування конфігурації.
     terraform apply -var="project_id=your-gcp-project-id" -var="grafana_admin_password=YourActualGrafanaPassword123!"
     ```
-    Замініть `your-gcp-project-id` на ваш реальний ID проекту (за замовченням "focused-ion-452816-h5") та `YourActualGrafanaPassword123!` на ваш обраний пароль для Grafana (стандартний "YourSecurePassword123!" не рекомендований для використання). Якщо значення у `variables.tf` вас влаштовують (після зміни паролю Grafana там), ви можете просто виконати `terraform plan` та `terraform apply` без аргументів `-var`.
+    Замініть `your-gcp-project-id` на ваш реальний ID проекту (за замовченням "montgomery-461911-u8"") та `YourActualGrafanaPassword123!` на ваш обраний пароль для Grafana (стандартний "YourSecurePassword123!" не рекомендований для використання). Якщо значення у `variables.tf` вас влаштовують (після зміни паролю Grafana там), ви можете просто виконати `terraform plan` та `terraform apply` без аргументів `-var`.
 
 9.  **Тестування CI/CD Пайплайну (Cloud Build Trigger):**
     *   Terraform створив тригер `tf-github-update`. Цей тригер автоматично спрацьовуватиме при push в гілку `main` у файли, що знаходяться в `gcp-terraform-project/source_code_for_pipeline/**`.
