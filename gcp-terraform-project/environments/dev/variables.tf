@@ -42,7 +42,7 @@ variable "gke_node_disk_type" {
 variable "gke_node_disk_size_gb" {
   description = "Розмір диску для нод GKE в ГБ."
   type        = number
-  default     = 20
+  default     = 30
 }
 
 variable "gke_node_count" {

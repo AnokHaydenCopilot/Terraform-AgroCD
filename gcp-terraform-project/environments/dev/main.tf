@@ -233,7 +233,7 @@ resource "google_container_node_pool" "primary_nodes" {
     disk_type       = var.gke_node_disk_type
     preemptible     = false # Якщо потрібні дешевші, але менш надійні ноди
     
-    # OAuth scopes для доступу до інших сервісів GCP (наприклад, GCR)
+    # OAuth scopes для доступу до інших сервісів GCP 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform" # Повний доступ до GCP API
     ]
