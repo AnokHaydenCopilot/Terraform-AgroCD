@@ -22,12 +22,12 @@ steps:
 - name: 'hashicorp/terraform:1.5.7' 
   id: 'Terraform Init'
   args: ['init']
-  dir: '${_TERRAFORM_DIR}' 
+  dir: 'gcp-terraform-project/environments/dev'
 
 - name: 'hashicorp/terraform:1.5.7'
   id: 'Terraform Validate' 
   args: ['validate']
-  dir: '${_TERRAFORM_DIR}'
+  dir: 'gcp-terraform-project/environments/dev'
   waitFor: ['Terraform Init']
 
 - name: 'hashicorp/terraform:1.5.7'
@@ -38,7 +38,7 @@ steps:
     - '-var=project_id=$PROJECT_ID' 
     - '-var=region=${_GKE_LOCATION}' 
     - '-var=gke_cluster_name=${_GKE_CLUSTER_NAME}'
-  dir: '${_TERRAFORM_DIR}'
+  dir: 'gcp-terraform-project/environments/dev'
   waitFor: ['Terraform Validate']
 
 - name: 'hashicorp/terraform:1.5.7'
@@ -47,7 +47,7 @@ steps:
     - 'apply'
     - '-auto-approve'
     - 'tfplan' 
-  dir: '${_TERRAFORM_DIR}'
+  dir: 'gcp-terraform-project/environments/dev'
   waitFor: ['Terraform Plan']
 
 
