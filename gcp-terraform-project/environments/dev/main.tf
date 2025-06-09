@@ -194,7 +194,8 @@ resource "google_compute_firewall" "allow_gclb_health_checks_to_gke_nodes" {
 # GKE Кластер
 resource "google_container_cluster" "primary" {
   name     = var.gke_cluster_name
-  location = var.region
+  # location = var.region НЕМА ТЕПЕР КВОТИ
+  location = var.zone
   deletion_protection = false
   # Видаляємо дефолтний node pool, щоб створити свій з потрібними параметрами
   remove_default_node_pool = true
@@ -207,10 +208,6 @@ resource "google_container_cluster" "primary" {
     cluster_secondary_range_name  = google_compute_subnetwork.gke_subnet.secondary_ip_range[0].range_name
     services_secondary_range_name = google_compute_subnetwork.gke_subnet.secondary_ip_range[1].range_name
   }
-  # networking_mode = "VPC_NATIVE" 
-
-  # Для доступу до Control Plane (Закритий)
-  # master_authorized_networks_config {}
                                         
   depends_on = [
     google_project_service.gke_api,

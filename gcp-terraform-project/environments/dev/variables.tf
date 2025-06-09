@@ -1,13 +1,14 @@
 variable "project_id" {
   description = "ID вашого GCP проекту."
   type        = string
-  default     = "focused-ion-452816-h5"
+  default     = "montgomery-461911-u8"
 }
 
 variable "region" {
   description = "Регіон для розгортання ресурсів."
   type        = string
-  default     = "us-central1"
+  # default     = "us-central1" НЕМА ТЕПЕР КВОТИ
+  default     = "us-central1" 
 }
 
 variable "zone" {
@@ -34,7 +35,8 @@ variable "gke_node_machine_type" {
 variable "gke_node_disk_type" {
   description = "Тип диску для нод GKE."
   type        = string
-  default     = "pd-balanced"
+  # default     = "pd-balanced"
+  default     = "pd-standard"
 }
 
 variable "gke_node_disk_size_gb" {
@@ -67,7 +69,6 @@ variable "grafana_admin_password" {
   default     = "YourSecurePassword123!" 
   sensitive   = false
 }
-
 
 variable "custom_vpc_name" {
   description = "Назва для кастомної VPC мережі."

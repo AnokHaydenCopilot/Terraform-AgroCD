@@ -1,5 +1,7 @@
+substitutions:
+  _TERRAFORM_DIR: 'gcp-terraform-project/environments/dev'
 steps:
-# Крок для відладки: показати структуру директорій
+# Дебагинг
 - name: 'gcr.io/cloud-builders/gcloud' 
   entrypoint: 'bash'
   args:
@@ -16,7 +18,40 @@ steps:
     echo "--- Trying to find Dockerfile:"
     find /workspace -name Dockerfile
 
-# 1. Збірка Docker образу
+# 1. Ініціалізація та застосування Terraform
+- name: 'hashicorp/terraform:1.5.7' 
+  id: 'Terraform Init'
+  args: ['init']
+  dir: '${_TERRAFORM_DIR}' 
+
+- name: 'hashicorp/terraform:1.5.7'
+  id: 'Terraform Validate' 
+  args: ['validate']
+  dir: '${_TERRAFORM_DIR}'
+  waitFor: ['Terraform Init']
+
+- name: 'hashicorp/terraform:1.5.7'
+  id: 'Terraform Plan'
+  args:
+    - 'plan'
+    - '-out=tfplan'
+    - '-var=project_id=$PROJECT_ID' 
+    - '-var=region=${_GKE_LOCATION}' 
+    - '-var=gke_cluster_name=${_GKE_CLUSTER_NAME}'
+  dir: '${_TERRAFORM_DIR}'
+  waitFor: ['Terraform Validate']
+
+- name: 'hashicorp/terraform:1.5.7'
+  id: 'Terraform Apply'
+  args:
+    - 'apply'
+    - '-auto-approve'
+    - 'tfplan' 
+  dir: '${_TERRAFORM_DIR}'
+  waitFor: ['Terraform Plan']
+
+
+# 2. Збірка Docker образу
 - name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
@@ -27,12 +62,12 @@ steps:
   id: 'Build Docker Image'
 
 
-# 2. Публікація Docker образу
+# 3. Публікація Docker образу
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/${_IMAGE_NAME}:$SHORT_SHA']
   id: 'Push to GCR'
 
-# 3. Розгортання в GKE
+# 4. Розгортання в GKE
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: 'bash'
   args:
