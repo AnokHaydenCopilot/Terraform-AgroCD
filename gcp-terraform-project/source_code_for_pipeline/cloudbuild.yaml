@@ -54,7 +54,7 @@ steps:
   - 'apply'
   - '-auto-approve'
   - 'tfplan'
-  dir: 'gcp-terraform-project/environments/dev' # Адаптуйте шлях
+  dir: 'gcp-terraform-project/environments/dev' 
   waitFor: ['Terraform Plan']
 
 # 2. Збірка Docker образу

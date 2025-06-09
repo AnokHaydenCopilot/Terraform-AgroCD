@@ -122,6 +122,7 @@ gcp-terraform-project/
     *   Надайте йому необхідні ролі (наприклад, `Owner` для простоти на етапі розробки).
     *   Завантажте ключ для цього сервісного акаунту у форматі JSON.
     *   Перейменуйте завантажений файл на `kubernetes-root.json` та розмістіть його в кореневій папці проекту (`gcp-terraform-project/kubernetes-root.json`). Шлях до цього файлу (`../../kubernetes-root.json`) вже вказаний як стандартне значення для змінної `service_account_key_path` у файлі `environments/dev/variables.tf`.
+    * В Secret Manager створіть секрет під назвою `terraform-sa-key` та вставте в нього вміст `kubernetes-root.json` 
     *   **ВАЖЛИВО:** Додайте `kubernetes-root.json` до вашого файлу `.gitignore`, щоб випадково не закомітити його.
         ```
         # .gitignore
