@@ -19,37 +19,45 @@ steps:
     find /workspace -name Dockerfile
 
 # 1. Ініціалізація та застосування Terraform
-- name: 'hashicorp/terraform:1.5.7' 
-  id: 'Terraform Init'
-  args: ['init']
-  dir: 'gcp-terraform-project/environments/dev'
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'Fetch SA Key from Secret Manager'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    gcloud secrets versions access latest --secret="terraform-sa-key" --project="$PROJECT_ID" > /workspace/sa-key.json
 
 - name: 'hashicorp/terraform:1.5.7'
-  id: 'Terraform Validate' 
+  id: 'Terraform Init'
+  args: ['init']
+  dir: 'gcp-terraform-project/environments/dev' 
+  waitFor: ['Fetch SA Key from Secret Manager'] 
+
+- name: 'hashicorp/terraform:1.5.7'
+  id: 'Terraform Validate'
   args: ['validate']
-  dir: 'gcp-terraform-project/environments/dev'
+  dir: 'gcp-terraform-project/environments/dev' 
   waitFor: ['Terraform Init']
 
 - name: 'hashicorp/terraform:1.5.7'
   id: 'Terraform Plan'
   args:
-    - 'plan'
-    - '-out=tfplan'
-    - '-var=project_id=$PROJECT_ID' 
-    - '-var=region=${_GKE_LOCATION}' 
-    - '-var=gke_cluster_name=${_GKE_CLUSTER_NAME}'
-  dir: 'gcp-terraform-project/environments/dev'
+  - 'plan'
+  - '-out=tfplan'
+  - '-var=gcp_project_id=$PROJECT_ID'
+  - '-var=gcp_region=${_GCP_REGION}' 
+  - '-var=service_account_key_path=/workspace/sa-key.json'
+  dir: 'gcp-terraform-project/environments/dev' 
   waitFor: ['Terraform Validate']
 
 - name: 'hashicorp/terraform:1.5.7'
   id: 'Terraform Apply'
   args:
-    - 'apply'
-    - '-auto-approve'
-    - 'tfplan' 
-  dir: 'gcp-terraform-project/environments/dev'
+  - 'apply'
+  - '-auto-approve'
+  - 'tfplan'
+  dir: 'gcp-terraform-project/environments/dev' # Адаптуйте шлях
   waitFor: ['Terraform Plan']
-
 
 # 2. Збірка Docker образу
 - name: 'gcr.io/cloud-builders/docker'
