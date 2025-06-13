@@ -107,3 +107,57 @@ provider "helm" {
     cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
   }
 }
+
+
+resource "google_compute_instance" "default" {
+  name         = var.instance_name
+  machine_type = var.instance_type
+  zone         = var.zone
+
+  boot_disk {
+    initialize_params {
+      image = var.image
+    }
+  }
+
+  network_interface {
+    network = var.network
+    access_config {
+      // Ephemeral IP
+    }
+  }
+}
+
+resource "google_compute_firewall" "default" {
+  name    = "allow-ssh"
+  network = var.network
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+# Генеруємо унікальний префікс для імені бакета
+resource "random_id" "bucket_prefix" {
+  byte_length = 8
+}
+
+resource "google_storage_bucket" "function_code_bucket" {
+  name                        = "ekzamen-${random_id.bucket_prefix.hex}"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  force_destroy               = true
+}
+
+resource "google_sql_database_instance" "mysql_demo_db" {
+  name = "db"
+  deletion_protection = false
+  region = "us-central1"
+  database_version = "MYSQL_5_7"
+  settings {
+    tier = "db-f1-micro"
+  }
+}
