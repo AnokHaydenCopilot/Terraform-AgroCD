@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: my-simple-app
+  namespace: ekzamen
   labels:
     app: my-simple-app
 spec:
@@ -25,6 +26,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: my-simple-app-service
+  namespace: ekzamen
 spec:
   selector:
     app: my-simple-app
