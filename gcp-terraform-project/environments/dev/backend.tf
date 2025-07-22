@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket  = "ekzamen-gcp-terraform" 
+    bucket  = "gke-terraform-state-bucket-883" 
     prefix  = "kubernetes-cluster-pipeline/state"   
   }
 }
