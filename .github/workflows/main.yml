@@ -45,15 +45,33 @@ jobs:
 
       - name: Update Kubernetes manifest
         run: |
+          # --- КРОК ДЛЯ ДІАГНОСТИКИ ---
+          echo "================================================="
+          echo "Running diagnostics: Listing all files recursively"
+          echo "Current directory is: $(pwd)"
+          ls -R
+          echo "================================================="
+          
+          # Перевірте, чи шлях нижче є правильним, судячи з виводу команди 'ls -R' вище
           MANIFEST_PATH="./on-premise-terraform-project/source_code_for_pipeline/kubernetes/deployment.yml"
+          
+          # Перевіряємо, чи існує файл, ПЕРЕД тим, як щось робити
+          if [ ! -f "$MANIFEST_PATH" ]; then
+            echo "Error: Manifest file not found at path: $MANIFEST_PATH"
+            exit 1
+          fi
 
           sed -i "s|IMAGE_PLACEHOLDER|${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.SHORT_SHA }}|g" $MANIFEST_PATH
-
+          
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions-bot@github.com"
-
+          
           git add $MANIFEST_PATH
           
-          git commit -m "CI: Update image tag to ${{ steps.vars.outputs.SHORT_SHA }} [skip ci]"
-          
-          git push
+          if ! git diff --staged --quiet; then
+            echo "Manifest changed. Committing and pushing..."
+            git commit -m "CI: Update image tag to ${{ steps.vars.outputs.SHORT_SHA }} [skip ci]"
+            git push
+          else
+            echo "Manifest already up-to-date. Nothing to commit."
+          fi
