@@ -5,16 +5,21 @@ on:
     branches: [ "main" ]
 
 env:
-  IMAGE_NAME: my-app
+  IMAGE_NAME: my-app 
 
 jobs:
   build-and-push:
     name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate short SHA
         id: vars
@@ -30,7 +35,6 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
-        id: build
         uses: docker/build-push-action@v4
         with:
           context: ./on-premise-terraform-project/source_code_for_pipeline/app
@@ -41,7 +45,7 @@ jobs:
 
       - name: Update Kubernetes manifest
         run: |
-          MANIFEST_PATH="./on-premise-terraform-project/source_code_for_pipeline/kubernetes/deployment.yaml" 
+          MANIFEST_PATH="./on-premise-terraform-project/source_code_for_pipeline/kubernetes/deployment.yml"
 
           sed -i "s|IMAGE_PLACEHOLDER|${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.SHORT_SHA }}|g" $MANIFEST_PATH
 
@@ -49,5 +53,7 @@ jobs:
           git config --global user.email "actions-bot@github.com"
 
           git add $MANIFEST_PATH
-          git commit -m "CI: Update image tag to ${{ steps.vars.outputs.SHORT_SHA }}"
+          
+          git commit -m "CI: Update image tag to ${{ steps.vars.outputs.SHORT_SHA }} [skip ci]"
+          
           git push
