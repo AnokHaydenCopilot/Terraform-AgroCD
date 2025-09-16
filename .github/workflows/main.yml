@@ -53,7 +53,7 @@ jobs:
           echo "================================================="
           
           # Перевірте, чи шлях нижче є правильним, судячи з виводу команди 'ls -R' вище
-          MANIFEST_PATH="./on-premise-terraform-project/source_code_for_pipeline/kubernetes/deployment.yml"
+          MANIFEST_PATH="./on-premise-terraform-project/source_code_for_pipeline/kubernetes/deployment.yaml"
           
           # Перевіряємо, чи існує файл, ПЕРЕД тим, як щось робити
           if [ ! -f "$MANIFEST_PATH" ]; then
