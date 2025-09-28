@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: my-simple-app-container
-        image: anokbb/my-app:bb92b8d
+        image: anokbb/my-app:1dce9ae
         ports:
         - containerPort: 80
 
